@@ -14,7 +14,9 @@ This lab fulfills four critical security engineering milestones:
 
 ## 🏗️ Pipeline Architecture
 
-```text
+## 🏗️ Pipeline Architecture
+
+\`\`\`text
 [ Threat Actor ] 
        │ (Malicious HTTP Injection)
        ▼
@@ -31,11 +33,10 @@ This lab fulfills four critical security engineering milestones:
                                                                         │
                                                                         ▼
                                                              [ Dashboard web UI ]
+\`\`\`
 
-
-                                                           
-💻 The Pinned Agent Image Blueprint (Dockerfile)
-The targeted asset was compiled from a modular blueprint designed to bake security compliance agents directly into the baseline operating system.
+## 💻 Pinned Agent Image Blueprint (`Dockerfile`)
+The monitored asset was built using a custom image blueprint designed to embed security compliance sensors directly into the baseline operating system.
 
 Dockerfile
 FROM debian:bookworm-slim
@@ -48,14 +49,14 @@ RUN apt-get update && apt-get install -y \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Cryptographically verify and establish the SIEM repository channel
-RUN curl -s [https://packages.wazuh.com/key/GPG-KEY-WAZUH](https://packages.wazuh.com/key/GPG-KEY-WAZUH) | gpg --dearmor -o /usr/share/keyrings/wazuh.gpg
-RUN echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] [https://packages.wazuh.com/4.x/apt/](https://packages.wazuh.com/4.x/apt/) stable main" | tee /etc/apt/sources.list.d/wazuh.list
+# 2. Establish the SIEM repository channel and verify GPG keys
+RUN curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --dearmor -o /usr/share/keyrings/wazuh.gpg
+RUN echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | tee /etc/apt/sources.list.d/wazuh.list
 
-# 3. Deploy the endpoint sensor, strictly pinning the package version for compatibility
+# 3. Deploy the endpoint sensor, strictly pinning the version for manager compatibility
 RUN apt-get update && apt-get install -y wazuh-agent=4.10.0-1
 
-# 4. Automate sensor network routing configurations to point to the central SIEM manager
+# 4. Automate sensor network routing configurations to point to the central manager
 RUN sed -i 's/<address>MANAGER_IP<\/address>/<address>wazuh.manager<\/address>/g' /var/ossec/etc/ossec.conf
 
 EXPOSE 80
@@ -63,46 +64,47 @@ EXPOSE 80
 # 5. Initialize the endpoint runtime loop alongside the web daemon
 CMD service wazuh-agent start && apache2ctl -D FOREGROUND
 ⚡ Attack Simulation & Telemetry Lifecycle
-1. The Exploit Payload Execution
-To test the detection engine, a malicious web vector was simulated using a targeted HTTP request. The payload explicitly executes a Directory Traversal Attack, attempting to climb out of the restricted web document root through relative tracking paths (../) to read sensitive configuration indices (/etc/passwd).
+1. Exploit Payload Execution
+A malicious web vector was simulated using a targeted HTTP request. The payload executes a Directory Traversal Attack, attempting to use relative tracking paths (../) to climb out of the web document root and access sensitive system files (/etc/passwd).
 
 Bash
 curl -G "http://localhost:8080/index.html" --data-urlencode "file=../../../../etc/passwd"
-2. The Unstructured Log Capture
-The Apache layer handled the query string and committed the raw transactional event metadata directly to the tracking disk at /var/log/apache2/access.log:
-
-Plaintext
-172.18.0.1 - - [13/Jun/2026:13:34:17 +0000] "GET /index.html?file=../../../../etc/passwd HTTP/1.1" 200 11025
-3. Central Rule Engine Processing
-The embedded wazuh-agent immediately read the updated log line, tokenized the attributes, and shipped it to the centralized engine. The text string passed through the analysis pipeline and triggered an exact regular expression lookup match for Rule 31103:
+2. Log Generation & Parsing Logic
+The Apache application layer committed the transactional event metadata directly to disk at /var/log/apache2/access.log. The background wazuh-agent immediately tokenized the new log string, shipped it over an encrypted TLS channel to the manager, and triggered an exact regular expression lookup match for Rule 31103:
 
 XML
-<!-- Underlying Core Logic Evaluation -->
+<!-- Core SIEM Engine Matching Logic -->
 <rule id="31103" level="7">
   <if_sid>31101</if_sid>
   <regex>\.\./\.\./\.\./\.\./etc/passwd</regex>
   <description>Web server rules - Directory traversal attempt</description>
 </rule>
+🛠️ Linux Systems Engineering & Troubleshooting Victories
+Building a security lab on a modern Linux workstation introduces strict platform constraints. This project successfully navigated and resolved several core system collisions:
+
+Package Pining Resolution: Overcame an initial agent deployment failure by diagnosing an upstream version mismatch between the web repository and the cluster baseline, resolved by enforcing strict software point-release constraints (wazuh-agent=4.10.0-1).
+
+SELinux Resource Optimization: Resolved a severe desktop resource bottleneck where Fedora's D-Bus activated setroubleshootd daemon flooded the system with GUI alerts during container database operations. Mitigated the CPU spike completely by tracking down the policy loop, updating directory contexts to container_file_t, and masking the alert service to restore system performance.
+
+Persistent Cache Management: Fixed a transient backend API link crash caused by corrupt, half-written configuration state files within persistent Docker volumes by orchestrating a granular volume prune loop (docker compose down -v).
+
 🚀 How to Run the Lab
-1. Bring the Core SIEM Stack Online
+
+1. Boot the Core SIEM Stack
 Bash
 cd wazuh-images/single-node
 docker compose up -d
-2. Deploy the Monitored Corporate Target
+
+3. Spin Up the Corporate Target Asset
 Bash
 docker run -d \
   --name enterprise-webserver \
   --network single-node_default \
   -p 8080:80 \
   vulnerable-apache
-3. Verify Alert Generation
-Access the UI Command Center at https://localhost:443
 
-Execute the attack simulation curl sequence from your terminal.
-
-Monitor real-time Level 7 true-positive detections inside the Threat Hunting -> Events portal.
-
-4. Clean Shutdown
+5. Graceful Lab Teardown
 Bash
 docker rm -f enterprise-webserver
 docker compose down
+                                                           
