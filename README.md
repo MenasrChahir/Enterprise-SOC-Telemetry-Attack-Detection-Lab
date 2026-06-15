@@ -15,7 +15,7 @@ This lab fulfills four critical security engineering milestones:
 
 ## 🏗️ Pipeline Architecture
 
-\`\`\`
+`
 [ Threat Actor ] 
        │ (Malicious HTTP Injection)
        ▼
@@ -34,7 +34,7 @@ This lab fulfills four critical security engineering milestones:
                                                              [ Dashboard web UI ]
 \`\`\`
 
-## 💻 Pinned Agent Image Blueprint (`Dockerfile`)
+
 ---
 ## 💻 Pinned Agent Image Blueprint (`Dockerfile`)
 The monitored asset was built using a custom image blueprint designed to embed security compliance sensors directly into the baseline operating system.
