@@ -15,7 +15,7 @@ This lab fulfills four critical security engineering milestones:
 
 ## 🏗️ Pipeline Architecture
 
-`
+```
 [ Threat Actor ] 
        │ (Malicious HTTP Injection)
        ▼
@@ -32,7 +32,7 @@ This lab fulfills four critical security engineering milestones:
                                                                         │
                                                                         ▼
                                                              [ Dashboard web UI ]
-\`\`\`
+```
 
 
 ---
