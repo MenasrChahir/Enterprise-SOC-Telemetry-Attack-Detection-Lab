@@ -1,0 +1,59 @@
+networks:
+  ecommerce-network:
+    name: ecommerce_default
+  wazuh-network:
+    name: single-node_default
+    external: true
+
+services:
+  dvwa-db:
+    build:
+      context: ./dvwa-db-image
+    container_name: dvwa-db
+    environment:
+      - MYSQL_ROOT_PASSWORD=dvwa_root
+      - MYSQL_DATABASE=dvwa
+      - MYSQL_USER=dvwa
+      - MYSQL_PASSWORD=dvwa_pass
+      - WAZUH_MANAGER=172.19.0.10
+    volumes:
+      - dvwa_db_data:/var/lib/mysql
+    networks:
+      - ecommerce-network
+      - wazuh-network
+    restart: unless-stopped
+
+  dvwa:
+    build:
+      context: ./dvwa-image
+    container_name: dvwa
+    environment:
+      - DB_SERVER=dvwa-db
+      - DB_DATABASE=dvwa
+      - DB_USER=dvwa
+      - DB_PASSWORD=dvwa_pass
+      - DB_PORT=3306
+      - WAZUH_MANAGER=172.19.0.10
+    ports:
+      - "8080:80"
+    depends_on:
+      - dvwa-db
+    networks:
+      - ecommerce-network
+      - wazuh-network
+    restart: unless-stopped
+
+  attacker:
+    build:
+      context: .
+      dockerfile: attacker.Dockerfile
+    container_name: ecommerce-attacker
+    networks:
+      - ecommerce-network
+    cap_add:
+      - NET_ADMIN
+    entrypoint: ["sleep"]
+    command: ["999999999"]
+
+volumes:
+  dvwa_db_data:
